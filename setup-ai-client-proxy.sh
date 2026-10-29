@@ -93,7 +93,12 @@ done
 
 validate_port() {
   local name=$1 port=$2
-  [[ $port =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || die "$name must be an integer between 1 and 65535."
+  if [[ ! $port =~ ^[0-9]+$ ]]; then
+    die "$name must be an integer between 1 and 65535."
+  fi
+  if (( port < 1 || port > 65535 )); then
+    die "$name must be an integer between 1 and 65535."
+  fi
 }
 
 validate_os() {
