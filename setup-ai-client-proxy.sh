@@ -252,6 +252,17 @@ configure_firewall() {
   ufw allow "${SSH_PORT}/tcp"
 }
 
+wait_for_listener() {
+  local attempt
+  for ((attempt = 1; attempt <= 30; attempt++)); do
+    if ss -lnt "sport = :${PROXY_PORT}" | grep -Fq ":${PROXY_PORT}"; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  die "sing-box did not open proxy port ${PROXY_PORT} within 15 seconds."
+}
+
 verify_loopback_listener() {
   local listeners
   listeners=$(ss -lnt "sport = :${PROXY_PORT}")
@@ -299,6 +310,7 @@ main() {
   write_sing_box_config "$password"
   configure_firewall
   systemctl enable --now sing-box
+  wait_for_listener
   verify_loopback_listener
   [[ $first_install == true || ( $PRINT_PASSWORD == true && -t 1 ) ]] && show_password=true
   print_summary "$password" "$show_password"
