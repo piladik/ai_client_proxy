@@ -200,12 +200,12 @@ read_or_create_password() {
   local password=""
   if [[ -f $CREDENTIALS_FILE && $ROTATE_PASSWORD == false ]]; then
     password=$(awk -F= '$1 == "PROXY_PASSWORD" { print $2 }' "$CREDENTIALS_FILE")
-    [[ $password =~ ^[0-9a-f]{128}$ ]] || die "Existing credentials file is invalid: $CREDENTIALS_FILE"
+    [[ $password =~ ^[0-9a-f]{64}$ || $password =~ ^[0-9a-f]{128}$ ]] || die "Existing credentials file is invalid: $CREDENTIALS_FILE"
     printf '%s' "$password"
     return
   fi
 
-  password=$(openssl rand -hex 64)
+  password=$(openssl rand -hex 32)
   install -d -m 0700 -o root -g root "$CONFIG_DIR"
   umask 077
   printf 'PROXY_PASSWORD=%s\n' "$password" > "$CREDENTIALS_FILE"

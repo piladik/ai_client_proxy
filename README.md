@@ -24,7 +24,7 @@ sudo bash setup-ai-client-proxy.sh --ssh-user ai-proxy
 
 For a direct root login, the installer copies keys from `/root/.ssh/authorized_keys`. When invoked with `sudo`, it copies keys from the invoking user's `~/.ssh/authorized_keys`.
 
-The first run prints a generated 128-character proxy password. Store it in a password manager. It is saved on the VPS at `/etc/ai-client-proxy/credentials`, owned by root with mode `0600`.
+The first run prints a generated 64-character proxy password. Store it in a password manager. It is saved on the VPS at `/etc/ai-client-proxy/credentials`, owned by root with mode `0600`.
 
 ### Options
 
