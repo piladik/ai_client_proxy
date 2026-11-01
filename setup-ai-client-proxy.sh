@@ -16,6 +16,7 @@ ROTATE_PASSWORD=false
 SKIP_FIREWALL=false
 PRINT_PASSWORD=false
 SOURCE_AUTHORIZED_KEYS=""
+SERVER_IP=""
 declare -a AUTHORIZED_KEYS=()
 
 usage() {
@@ -166,6 +167,19 @@ install_dependencies() {
   apt-get install -y curl gnupg openssl ca-certificates
 }
 
+determine_public_ipv4() {
+  local ip octet
+  local -a octets
+
+  ip=$(curl -4 --fail --silent --show-error --max-time 10 https://api.ipify.org) || die "Cannot determine the server's public IPv4 address."
+  [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || die "Public IPv4 service returned an invalid address: $ip"
+  IFS=. read -r -a octets <<< "$ip"
+  for octet in "${octets[@]}"; do
+    (( 10#$octet <= 255 )) || die "Public IPv4 service returned an invalid address: $ip"
+  done
+  SERVER_IP=$ip
+}
+
 install_sing_box() {
   local key_tmp
   key_tmp=$(mktemp)
@@ -271,7 +285,7 @@ verify_loopback_listener() {
 }
 
 print_summary() {
-  local password=$1 show_password=$2
+  local password=$1 show_password=$2 server_ip=$3
   printf '\n============================================================\n'
   printf ' AI Client Proxy: installation complete\n'
   printf '============================================================\n'
@@ -287,7 +301,7 @@ print_summary() {
   printf '\n[ COPY: SSH CLIENT CONFIG ]\n'
   cat <<EOF
 Host ai-client-proxy
-    HostName SERVER_IP
+    HostName ${server_ip}
     User ${SSH_USER}
     IdentityFile ~/.ssh/YOUR_PRIVATE_KEY
     IdentitiesOnly yes
@@ -332,6 +346,7 @@ main() {
   validate_prerequisites
   [[ ! -f $CREDENTIALS_FILE || $ROTATE_PASSWORD == true ]] && first_install=true
   install_dependencies
+  determine_public_ipv4
   install_sing_box
   create_ssh_user
   password=$(read_or_create_password)
@@ -342,7 +357,7 @@ main() {
   wait_for_listener
   verify_loopback_listener
   [[ $first_install == true || ( $PRINT_PASSWORD == true && -t 1 ) ]] && show_password=true
-  print_summary "$password" "$show_password"
+  print_summary "$password" "$show_password" "$SERVER_IP"
 }
 
 main "$@"

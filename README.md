@@ -41,11 +41,11 @@ The installer does not enable UFW if it is inactive. Unless `--skip-firewall` is
 
 ## Client Tunnel
 
-Add this to `~/.ssh/config` on the client, substituting the server address and your existing private-key filename:
+The installer prints this SSH configuration with the server's public IPv4 address already filled in. Add it to `~/.ssh/config` on the client, replacing only your private-key filename:
 
 ```sshconfig
 Host ai-client-proxy
-    HostName SERVER_IP
+    HostName 203.0.113.10
     User ai-proxy
     IdentityFile ~/.ssh/YOUR_PRIVATE_KEY
     IdentitiesOnly yes
