@@ -97,7 +97,7 @@ sudo bash setup-ai-client-proxy.sh \
   --rotate-password
 ```
 
-The new password is printed after successful rotation. Existing client proxy configuration must be updated.
+The new password is printed after successful rotation, and `sing-box` is restarted so it takes effect immediately. Existing client proxy configuration must be updated.
 
 To display the password and a fresh copyable `ai-proxy` function without rotating it, run the installer interactively with `--print-password`:
 

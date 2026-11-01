@@ -337,7 +337,8 @@ main() {
   password=$(read_or_create_password)
   write_sing_box_config "$password"
   configure_firewall
-  systemctl enable --now sing-box
+  systemctl enable sing-box
+  systemctl restart sing-box
   wait_for_listener
   verify_loopback_listener
   [[ $first_install == true || ( $PRINT_PASSWORD == true && -t 1 ) ]] && show_password=true
