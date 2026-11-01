@@ -14,7 +14,7 @@ SSH_USER=""
 SSH_PORT=22
 PROXY_PORT=1080
 ROTATE_PASSWORD=false
-SKIP_FIREWALL=false
+FIREWALL=false
 PRINT_PASSWORD=false
 FAIL2BAN=false
 SOURCE_AUTHORIZED_KEYS=""
@@ -35,8 +35,8 @@ Options:
   --ssh-port PORT       SSH daemon port to allow through UFW (default: 22).
   --proxy-port PORT     Local sing-box proxy port (default: 1080).
   --rotate-password     Generate and apply a new proxy password.
+  --firewall            Configure and enable UFW for SSH.
   --fail2ban            Configure Fail2Ban to protect SSH.
-  --skip-firewall       Do not alter UFW rules.
   --print-password      Print the saved password on an interactive repeat run.
   -h, --help            Show this help message.
 EOF
@@ -83,8 +83,8 @@ while [[ $# -gt 0 ]]; do
       FAIL2BAN=true
       shift
       ;;
-    --skip-firewall)
-      SKIP_FIREWALL=true
+    --firewall)
+      FIREWALL=true
       shift
       ;;
     --print-password)
@@ -268,9 +268,13 @@ EOF
 }
 
 configure_firewall() {
-  [[ $SKIP_FIREWALL == true ]] && return
+  local listeners
   apt-get install -y ufw
+  listeners=$(ss -lntp "sport = :${SSH_PORT}" 2>/dev/null || true)
+  [[ $listeners == *"sshd"* ]] || die "sshd is not listening on port ${SSH_PORT}; not enabling UFW."
   ufw allow "${SSH_PORT}/tcp"
+  ufw --force enable
+  LC_ALL=C ufw status | grep -Fxq 'Status: active' || die "UFW did not become active."
 }
 
 configure_fail2ban() {
@@ -313,7 +317,7 @@ verify_loopback_listener() {
 }
 
 print_summary() {
-  local password=$1 show_password=$2 server_ip=$3 fail2ban_enabled=$4
+  local password=$1 show_password=$2 server_ip=$3 fail2ban_enabled=$4 firewall_enabled=$5
   printf '\n============================================================\n'
   printf ' AI Client Proxy: installation complete\n'
   printf '============================================================\n'
@@ -366,6 +370,9 @@ EOF
 
   printf '\n[ SERVER DIAGNOSTICS ]\n'
   printf 'Configuration: %s\nJournal:       journalctl -u sing-box\n' "$SING_BOX_CONFIG"
+  if [[ $firewall_enabled == true ]]; then
+    printf 'UFW:           enabled with SSH allowed on port %s.\n' "$SSH_PORT"
+  fi
   if [[ $fail2ban_enabled == true ]]; then
     printf 'Fail2Ban:      configured and protecting SSH on port %s.\n' "$SSH_PORT"
   fi
@@ -382,14 +389,14 @@ main() {
   create_ssh_user
   password=$(read_or_create_password)
   write_sing_box_config "$password"
-  configure_firewall
+  [[ $FIREWALL == true ]] && configure_firewall
   [[ $FAIL2BAN == true ]] && configure_fail2ban
   systemctl enable sing-box
   systemctl restart sing-box
   wait_for_listener
   verify_loopback_listener
   [[ $first_install == true || ( $PRINT_PASSWORD == true && -t 1 ) ]] && show_password=true
-  print_summary "$password" "$show_password" "$SERVER_IP" "$FAIL2BAN"
+  print_summary "$password" "$show_password" "$SERVER_IP" "$FAIL2BAN" "$FIREWALL"
 }
 
 main "$@"
