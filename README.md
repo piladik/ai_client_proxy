@@ -33,11 +33,12 @@ The first run prints a generated 64-character proxy password. Store it in a pass
 --ssh-port PORT       SSH daemon port to allow through UFW (default: 22).
 --proxy-port PORT     Local sing-box proxy port (default: 1080).
 --rotate-password     Generate and apply a new proxy password.
---skip-firewall       Do not alter UFW rules.
+--firewall            Configure and enable UFW for SSH.
+--fail2ban            Configure Fail2Ban to protect SSH.
 --print-password      Print the saved password on an interactive repeat run.
 ```
 
-The installer does not enable UFW if it is inactive. Unless `--skip-firewall` is used, it adds an allow rule for the SSH port and never adds one for the proxy port.
+With `--firewall`, the installer allows the SSH port and enables UFW. It never adds a firewall rule for the proxy port.
 
 ## Client Tunnel
 
