@@ -272,15 +272,20 @@ verify_loopback_listener() {
 
 print_summary() {
   local password=$1 show_password=$2
-  printf '\nInstallation complete.\n'
-  printf 'SSH user: %s\nProxy port: %s\n' "$SSH_USER" "$PROXY_PORT"
+  printf '\n============================================================\n'
+  printf ' AI Client Proxy: installation complete\n'
+  printf '============================================================\n'
+  printf '\n[ PROXY CREDENTIALS ]\n'
+  printf 'Username: %s\nLocal address: 127.0.0.1:%s\n' "$SSH_USER" "$PROXY_PORT"
   if [[ $show_password == true ]]; then
     printf 'Proxy password: %s\n' "$password"
+  else
+    printf 'Proxy password: not shown on a normal repeat run.\n'
+    printf 'Show it interactively: sudo bash setup-ai-client-proxy.sh --ssh-user %s --print-password\n' "$SSH_USER"
   fi
+
+  printf '\n[ COPY: SSH CLIENT CONFIG ]\n'
   cat <<EOF
-
-Add this to ~/.ssh/config on the client:
-
 Host ai-client-proxy
     HostName SERVER_IP
     User ${SSH_USER}
@@ -292,11 +297,34 @@ Host ai-client-proxy
     ServerAliveCountMax 10
     TCPKeepAlive yes
 
-Start the tunnel: ssh -N ai-client-proxy
-Test the proxy:  curl --proxy 'http://${SSH_USER}:PASSWORD@127.0.0.1:${PROXY_PORT}' https://api.ipify.org
-Configuration: ${SING_BOX_CONFIG}
-Journal:       journalctl -u sing-box
 EOF
+
+  printf '\n[ START SSH TUNNEL ]\n'
+  printf 'ssh -N ai-client-proxy\n'
+
+  if [[ $show_password == true ]]; then
+    printf '\n[ COPY: UNIVERSAL CLIENT WRAPPER ]\n'
+    cat <<EOF
+ai-proxy() {
+  HTTPS_PROXY='http://${SSH_USER}:${password}@127.0.0.1:${PROXY_PORT}' \\
+  HTTP_PROXY='http://${SSH_USER}:${password}@127.0.0.1:${PROXY_PORT}' \\
+  NO_PROXY='localhost,127.0.0.1,::1' \\
+  "\$@"
+}
+EOF
+    printf '\nAdd the function to ~/.zshrc or ~/.bashrc, then reload the shell.\n'
+    printf 'Verified clients: OpenCode and Codex.\n'
+    printf 'Examples: ai-proxy opencode\n          ai-proxy codex\n'
+    printf '\n[ VERIFY PROXY ]\n'
+    printf "curl --proxy 'http://%s:%s@127.0.0.1:%s' https://api.ipify.org\n" "$SSH_USER" "$password" "$PROXY_PORT"
+  else
+    printf '\n[ UNIVERSAL CLIENT WRAPPER ]\n'
+    printf 'Use --print-password to display the copyable ai-proxy function.\n'
+  fi
+
+  printf '\n[ SERVER DIAGNOSTICS ]\n'
+  printf 'Configuration: %s\nJournal:       journalctl -u sing-box\n' "$SING_BOX_CONFIG"
+  printf '============================================================\n'
 }
 
 main() {
