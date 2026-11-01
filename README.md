@@ -24,7 +24,7 @@ sudo bash setup-ai-client-proxy.sh --ssh-user ai-proxy
 
 For a direct root login, the installer copies keys from `/root/.ssh/authorized_keys`. When invoked with `sudo`, it copies keys from the invoking user's `~/.ssh/authorized_keys`.
 
-The first run prints a generated 128-character proxy password. Store it in a password manager. It is saved on the VPS at `/etc/ai-client-proxy/credentials`, owned by root with mode `0600`.
+The first run prints a generated 64-character proxy password. Store it in a password manager. It is saved on the VPS at `/etc/ai-client-proxy/credentials`, owned by root with mode `0600`.
 
 ### Options
 
@@ -41,11 +41,11 @@ The installer does not enable UFW if it is inactive. Unless `--skip-firewall` is
 
 ## Client Tunnel
 
-Add this to `~/.ssh/config` on the client, substituting the server address and your existing private-key filename:
+The installer prints this SSH configuration with the server's public IPv4 address already filled in. Add it to `~/.ssh/config` on the client, replacing only your private-key filename:
 
 ```sshconfig
 Host ai-client-proxy
-    HostName SERVER_IP
+    HostName 203.0.113.10
     User ai-proxy
     IdentityFile ~/.ssh/YOUR_PRIVATE_KEY
     IdentitiesOnly yes
@@ -70,6 +70,17 @@ curl --proxy 'http://ai-proxy:PASSWORD@127.0.0.1:1080' https://api.ipify.org
 
 Use the resulting local HTTP proxy address and credentials in the client application. SOCKS5 is also available on the same local port.
 
+### Universal Client Wrapper
+
+The installer prints a ready-to-copy `ai-proxy` function after the first installation, password rotation, or an interactive run with `--print-password`. Add it to `~/.zshrc` or `~/.bashrc`, then reload the shell. It sets the HTTP proxy environment for any command:
+
+```bash
+ai-proxy opencode
+ai-proxy codex
+```
+
+OpenCode and Codex are currently verified to work with this wrapper. Other clients that honor `HTTP_PROXY` and `HTTPS_PROXY` can be started the same way.
+
 ## Re-run And Rotate
 
 A normal re-run preserves the proxy password and existing tunnel access. It adds any administrative keys missing from the tunnel user's `authorized_keys`, restores the service, and revalidates the loopback listener.
@@ -86,7 +97,13 @@ sudo bash setup-ai-client-proxy.sh \
   --rotate-password
 ```
 
-The new password is printed after successful rotation. Existing client proxy configuration must be updated.
+The new password is printed after successful rotation, and `sing-box` is restarted so it takes effect immediately. Existing client proxy configuration must be updated.
+
+To display the password and a fresh copyable `ai-proxy` function without rotating it, run the installer interactively with `--print-password`:
+
+```bash
+sudo bash setup-ai-client-proxy.sh --ssh-user ai-proxy --print-password
+```
 
 ## Operations And Troubleshooting
 
