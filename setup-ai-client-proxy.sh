@@ -8,6 +8,7 @@ readonly CREDENTIALS_FILE="${CONFIG_DIR}/credentials"
 readonly SING_BOX_CONFIG="/etc/sing-box/config.json"
 readonly KEYRING="/usr/share/keyrings/sing-box.gpg"
 readonly APT_SOURCE="/etc/apt/sources.list.d/sing-box.list"
+readonly FAIL2BAN_CONFIG="/etc/fail2ban/jail.d/ai-client-proxy.conf"
 
 SSH_USER=""
 SSH_PORT=22
@@ -15,6 +16,7 @@ PROXY_PORT=1080
 ROTATE_PASSWORD=false
 SKIP_FIREWALL=false
 PRINT_PASSWORD=false
+FAIL2BAN=false
 SOURCE_AUTHORIZED_KEYS=""
 SERVER_IP=""
 declare -a AUTHORIZED_KEYS=()
@@ -33,6 +35,7 @@ Options:
   --ssh-port PORT       SSH daemon port to allow through UFW (default: 22).
   --proxy-port PORT     Local sing-box proxy port (default: 1080).
   --rotate-password     Generate and apply a new proxy password.
+  --fail2ban            Configure Fail2Ban to protect SSH.
   --skip-firewall       Do not alter UFW rules.
   --print-password      Print the saved password on an interactive repeat run.
   -h, --help            Show this help message.
@@ -74,6 +77,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --rotate-password)
       ROTATE_PASSWORD=true
+      shift
+      ;;
+    --fail2ban)
+      FAIL2BAN=true
       shift
       ;;
     --skip-firewall)
@@ -266,6 +273,27 @@ configure_firewall() {
   ufw allow "${SSH_PORT}/tcp"
 }
 
+configure_fail2ban() {
+  local config_tmp
+  apt-get install -y fail2ban
+  config_tmp=$(mktemp)
+  cat > "$config_tmp" <<EOF
+[sshd]
+enabled = true
+backend = systemd
+port = ${SSH_PORT}
+maxretry = 3
+findtime = 1h
+bantime = 1d
+EOF
+  install -d -m 0755 /etc/fail2ban/jail.d
+  install -m 0644 -o root -g root "$config_tmp" "$FAIL2BAN_CONFIG"
+  rm -f "$config_tmp"
+  systemctl enable fail2ban
+  systemctl restart fail2ban
+  fail2ban-client status sshd >/dev/null || die "Fail2Ban SSH jail is not active."
+}
+
 wait_for_listener() {
   local attempt
   for ((attempt = 1; attempt <= 30; attempt++)); do
@@ -285,7 +313,7 @@ verify_loopback_listener() {
 }
 
 print_summary() {
-  local password=$1 show_password=$2 server_ip=$3
+  local password=$1 show_password=$2 server_ip=$3 fail2ban_enabled=$4
   printf '\n============================================================\n'
   printf ' AI Client Proxy: installation complete\n'
   printf '============================================================\n'
@@ -338,6 +366,9 @@ EOF
 
   printf '\n[ SERVER DIAGNOSTICS ]\n'
   printf 'Configuration: %s\nJournal:       journalctl -u sing-box\n' "$SING_BOX_CONFIG"
+  if [[ $fail2ban_enabled == true ]]; then
+    printf 'Fail2Ban:      configured and protecting SSH on port %s.\n' "$SSH_PORT"
+  fi
   printf '============================================================\n'
 }
 
@@ -352,12 +383,13 @@ main() {
   password=$(read_or_create_password)
   write_sing_box_config "$password"
   configure_firewall
+  [[ $FAIL2BAN == true ]] && configure_fail2ban
   systemctl enable sing-box
   systemctl restart sing-box
   wait_for_listener
   verify_loopback_listener
   [[ $first_install == true || ( $PRINT_PASSWORD == true && -t 1 ) ]] && show_password=true
-  print_summary "$password" "$show_password" "$SERVER_IP"
+  print_summary "$password" "$show_password" "$SERVER_IP" "$FAIL2BAN"
 }
 
 main "$@"

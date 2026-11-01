@@ -33,6 +33,7 @@ The first run prints a generated 64-character proxy password. Store it in a pass
 --ssh-port PORT       SSH daemon port to allow through UFW (default: 22).
 --proxy-port PORT     Local sing-box proxy port (default: 1080).
 --rotate-password     Generate and apply a new proxy password.
+--fail2ban            Configure Fail2Ban to protect SSH.
 --skip-firewall       Do not alter UFW rules.
 --print-password      Print the saved password on an interactive repeat run.
 ```
