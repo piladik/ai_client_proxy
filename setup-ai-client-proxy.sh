@@ -295,7 +295,18 @@ EOF
   rm -f "$config_tmp"
   systemctl enable fail2ban
   systemctl restart fail2ban
-  fail2ban-client status sshd >/dev/null || die "Fail2Ban SSH jail is not active."
+  wait_for_fail2ban_jail
+}
+
+wait_for_fail2ban_jail() {
+  local attempt
+  for ((attempt = 1; attempt <= 30; attempt++)); do
+    if fail2ban-client status sshd >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  die "Fail2Ban SSH jail did not become active within 15 seconds."
 }
 
 wait_for_listener() {
